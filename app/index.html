@@ -14,7 +14,18 @@
 /* Installable offline app when served from a website; does nothing when opened as a local file. */
 if (/^https?:$/.test(location.protocol)){
   const m = document.createElement('link'); m.rel = 'manifest'; m.href = 'manifest.webmanifest'; document.head.appendChild(m);
-  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('offline cache not available', e)));
+  if ('serviceWorker' in navigator){
+    /* When a new version has been uploaded: check for it on every open and every return to the app,
+       and when it has been downloaded, reload once so it shows straight away (only if that happens within
+       15 s of opening/returning, so a quiz in progress is never interrupted; otherwise the next open shows it). */
+    const hadSW = !!navigator.serviceWorker.controller; let since = performance.now(), reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadSW && !reloaded && performance.now() - since < 15000){ reloaded = true; location.reload(); }
+    });
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(reg => {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible'){ since = performance.now(); reg.update().catch(() => {}); } });
+    }).catch(e => console.warn('offline cache not available', e)));
+  }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 }
 </script>
