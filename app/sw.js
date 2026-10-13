@@ -1,9 +1,9 @@
 /* Offline support when the app is served from a website (GitHub Pages, Netlify, ...).
    Not used when the app is opened as a local file. Every file in PRECACHE is saved on first visit;
    after that the app opens without internet. Files are refreshed in the background whenever you are online,
-   so a new version shows up the next time the app is opened.
+   and when a new VERSION is found the page reloads itself once (see index.html), so an upload shows up within seconds.
    When you add a new file to app/ (e.g. a new data/*.js), add it to PRECACHE and change VERSION. */
-const VERSION = 'gdq-2026-10-13c';
+const VERSION = 'gdq-2026-10-13d';
 const PRECACHE = [
   './', './index.html', './manifest.webmanifest', './js/app.js', './vendor/tex-svg-full.js',
   './data/syllabus.js', './data/papers.js', './data/ps.js', './data/la.js', './data/calc.js', './data/dsa.js',
@@ -26,7 +26,8 @@ self.addEventListener('fetch', e => {
   if (url.origin !== location.origin && !fonts) return;
   e.respondWith(caches.open(VERSION).then(async cache => {
     const hit = await cache.match(req, {ignoreSearch: true});
-    const net = fetch(req).then(res => { if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()); return res; }).catch(() => null);
+    /* no-cache: ask the server whether the file changed, instead of trusting the browser's 10-minute cache */
+    const net = (url.origin === location.origin ? fetch(req.url, {cache: 'no-cache'}) : fetch(req)).then(res => { if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()); return res; }).catch(() => null);
     if (hit){ e.waitUntil(net); return hit; }
     const res = await net;
     if (res) return res;
